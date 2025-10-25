@@ -1,0 +1,20 @@
+=== AVAILABLE ITEMS ===
+Item,Quantity
+"Project Alpha","3"
+"Project Alpha → Phase 1","2"
+"Project Alpha → Phase 2","1"
+"Meeting Prep","1"
+"Meeting Prep → Research","1"
+"Meeting Prep → Agenda","1"
+
+=== REPEATED ITEMS ===
+Item,Frequency
+"Daily Standup","Daily"
+"Code Review","Weekly"
+"Code Review → Frontend Review","Weekly"
+"Code Review → Backend Review","Weekly"
+"Monthly Planning","Monthly"
+
+=== EXPORT INFO ===
+Export Date,Version
+"12/20/2024","2.0"

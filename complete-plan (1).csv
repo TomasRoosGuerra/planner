@@ -1,0 +1,35 @@
+=== WEEKLY SCHEDULE ===
+Day,Morning,Afternoon,Evening,Night
+"Monday","Trading","","",""
+"Tuesday","Trading","","",""
+"Wednesday","Trading","","",""
+"Thursday","Trading","","",""
+"Friday","Trading","","",""
+"Saturday","","","",""
+"Sunday","","","Meal prep",""
+
+=== AVAILABLE ITEMS ===
+Item,Quantity
+"Skriva skogsmulle","1"
+"Lära mig japanska","1"
+"Lära mig persiska","1"
+"Enhance portfolio","1"
+"Plugga Körkort","1"
+"Dammsuga lägenhet","1"
+"Dammsuga lägenhet → förbereda dammsugare","1"
+
+=== REPEATED ITEMS ===
+Item,Frequency
+"Meal prep","Weekly"
+"Träning","Daily"
+"Writing","2 days"
+"Söka jobb","Daily"
+"Carrot/Reward/Pleasure/Inspiration","Weekly"
+"Trading","Daily"
+"tvättstuga","Bi-weekly"
+"read books","Weekly"
+"Handla mat är rutin","Monthly"
+
+=== EXPORT INFO ===
+Export Date,Version
+"2025-10-24","1.0"
