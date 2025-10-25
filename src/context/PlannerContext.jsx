@@ -1,5 +1,5 @@
-import { doc, getDoc, setDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import React, { createContext, useContext, useEffect, useReducer } from "react";
 import { auth, db } from "../firebase";
 import { generateId, Item, ITEM_TYPES, ScheduleItem, SubItem } from "../models";

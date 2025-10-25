@@ -271,8 +271,9 @@ const ExportSection = () => {
         ) {
           console.log("Processing available item line:", line);
           const [itemName, quantity] = parseCSVLine(line);
-          console.log("Parsed item:", itemName, quantity);
+          console.log("Parsed item:", itemName, "quantity:", quantity);
           if (itemName && quantity) {
+            console.log("Adding item:", itemName, "with quantity:", quantity);
             // Check if this is a sub-item (contains " → ")
             if (itemName.includes(" → ")) {
               const [mainItemName, subItemName] = itemName.split(" → ");
@@ -452,10 +453,24 @@ const ExportSection = () => {
   };
 
   const parseCSVLine = (line) => {
-    const matches = line.match(/"([^"]+)"/g);
-    if (matches && matches.length >= 2) {
-      return [matches[0].slice(1, -1), matches[1].slice(1, -1)];
+    // Try to match quoted fields first
+    const quotedMatches = line.match(/"([^"]+)"/g);
+    if (quotedMatches && quotedMatches.length >= 2) {
+      return [quotedMatches[0].slice(1, -1), quotedMatches[1].slice(1, -1)];
     }
+    
+    // Try to match unquoted fields with comma separator
+    const unquotedMatches = line.match(/^([^,]+),(.+)$/);
+    if (unquotedMatches && unquotedMatches.length >= 3) {
+      return [unquotedMatches[1].trim(), unquotedMatches[2].trim()];
+    }
+    
+    // Fallback: split by comma and trim
+    const parts = line.split(',').map(p => p.trim().replace(/^"|"$/g, ''));
+    if (parts.length >= 2) {
+      return [parts[0], parts[1]];
+    }
+    
     return [null, null];
   };
 
