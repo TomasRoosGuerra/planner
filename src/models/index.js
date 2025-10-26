@@ -42,13 +42,25 @@ export class Item {
     customFrequency = null
   ) {
     // Validate required parameters with better error handling
-    if (!id || typeof id !== "string") {
+    if (!id) {
       console.error("Invalid Item ID:", id);
-      throw new Error("Item ID is required and must be a string");
+      throw new Error("Item ID is required");
     }
-    if (!name || typeof name !== "string" || name.trim() === "") {
+    
+    // Convert to string if needed
+    const stringId = String(id);
+    
+    if (!name) {
       console.error("Invalid Item name:", name);
-      throw new Error("Item name is required and must be a non-empty string");
+      throw new Error("Item name is required");
+    }
+    
+    // Convert to string if needed
+    const stringName = String(name);
+    
+    if (stringName.trim() === "") {
+      console.error("Invalid Item name: empty string");
+      throw new Error("Item name cannot be empty");
     }
 
     // Allow any itemType for backwards compatibility
@@ -56,8 +68,8 @@ export class Item {
       ? itemType
       : ITEM_TYPES.NORMAL;
 
-    this.id = id;
-    this.name = name.trim();
+    this.id = stringId;
+    this.name = stringName.trim();
     this.itemType = validItemType;
     this.subtype = subtype || null;
     this.frequency = frequency || null;

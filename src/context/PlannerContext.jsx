@@ -1,6 +1,12 @@
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import React, { createContext, useContext, useEffect, useReducer, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useReducer,
+  useState,
+} from "react";
 import { auth, db } from "../firebase";
 import { generateId, Item, ITEM_TYPES, ScheduleItem, SubItem } from "../models";
 
@@ -260,7 +266,10 @@ export const PlannerProvider = ({ children }) => {
                     setSkipNextSave(true);
                     dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
                   } catch (err) {
-                    console.error("Failed to load data from localStorage:", err);
+                    console.error(
+                      "Failed to load data from localStorage:",
+                      err
+                    );
                   }
                 }
               }
@@ -367,7 +376,14 @@ export const PlannerProvider = ({ children }) => {
     } catch (error) {
       console.error("Error in save effect:", error);
     }
-  }, [state.items, state.repeatedItems, state.schedule, state.completedItems, skipNextSave, isInitialized]);
+  }, [
+    state.items,
+    state.repeatedItems,
+    state.schedule,
+    state.completedItems,
+    skipNextSave,
+    isInitialized,
+  ]);
 
   // Action creators
   const addItem = (itemData) => {
