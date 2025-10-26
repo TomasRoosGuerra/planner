@@ -41,23 +41,27 @@ export class Item {
     frequency = null,
     customFrequency = null
   ) {
-    // Validate required parameters
+    // Validate required parameters with better error handling
     if (!id || typeof id !== "string") {
+      console.error("Invalid Item ID:", id);
       throw new Error("Item ID is required and must be a string");
     }
     if (!name || typeof name !== "string" || name.trim() === "") {
+      console.error("Invalid Item name:", name);
       throw new Error("Item name is required and must be a non-empty string");
     }
-    if (!Object.values(ITEM_TYPES).includes(itemType)) {
-      throw new Error(`Invalid item type: ${itemType}`);
-    }
+    
+    // Allow any itemType for backwards compatibility
+    const validItemType = Object.values(ITEM_TYPES).includes(itemType) 
+      ? itemType 
+      : ITEM_TYPES.NORMAL;
 
     this.id = id;
     this.name = name.trim();
-    this.itemType = itemType;
-    this.subtype = subtype;
-    this.frequency = frequency;
-    this.customFrequency = customFrequency;
+    this.itemType = validItemType;
+    this.subtype = subtype || null;
+    this.frequency = frequency || null;
+    this.customFrequency = customFrequency || null;
     this.quantity = 1;
     this.duration = 0; // in minutes
     this.subItems = [];
