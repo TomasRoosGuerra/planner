@@ -232,39 +232,68 @@ export const PlannerProvider = ({ children }) => {
   // Auth state listener and Firebase sync
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // User is signed in - load from Firestore
-        try {
-          const userDocRef = doc(db, "users", user.uid);
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
+      try {
+        if (user) {
+          // User is signed in - load from Firestore
+          try {
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+              const data = userDoc.data();
+              // Only load if we have actual data
+              if (data && (data.items || data.repeatedItems || data.schedule)) {
+                dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
+              } else {
+                // No data in Firestore, try localStorage
+                const savedData = localStorage.getItem("plannerData");
+                if (savedData) {
+                  try {
+                    const data = JSON.parse(savedData);
+                    dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
+                  } catch (err) {
+                    console.error("Failed to load data from localStorage:", err);
+                  }
+                }
+              }
+            } else {
+              // Firestore doc doesn't exist, use localStorage
+              const savedData = localStorage.getItem("plannerData");
+              if (savedData) {
+                try {
+                  const data = JSON.parse(savedData);
+                  dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
+                } catch (err) {
+                  console.error("Failed to load data from localStorage:", err);
+                }
+              }
+            }
+          } catch (error) {
+            console.error("Failed to load data from Firestore:", error);
+            // Fallback to localStorage
+            const savedData = localStorage.getItem("plannerData");
+            if (savedData) {
+              try {
+                const data = JSON.parse(savedData);
+                dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
+              } catch (err) {
+                console.error("Failed to load data from localStorage:", err);
+              }
+            }
           }
-        } catch (error) {
-          console.error("Failed to load data from Firestore:", error);
-          // Fallback to localStorage
+        } else {
+          // User is signed out - load from localStorage
           const savedData = localStorage.getItem("plannerData");
           if (savedData) {
             try {
               const data = JSON.parse(savedData);
               dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
-            } catch (err) {
-              console.error("Failed to load data from localStorage:", err);
+            } catch (error) {
+              console.error("Failed to load data from localStorage:", error);
             }
           }
         }
-      } else {
-        // User is signed out - load from localStorage
-        const savedData = localStorage.getItem("plannerData");
-        if (savedData) {
-          try {
-            const data = JSON.parse(savedData);
-            dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
-          } catch (error) {
-            console.error("Failed to load data from localStorage:", error);
-          }
-        }
+      } catch (error) {
+        console.error("Error in auth state listener:", error);
       }
     });
 
@@ -273,42 +302,59 @@ export const PlannerProvider = ({ children }) => {
 
   // Save data to both localStorage and Firestore
   useEffect(() => {
-    const dataToSave = {
-      items: state.items,
-      repeatedItems: state.repeatedItems,
-      schedule: state.schedule,
-      completedItems: state.completedItems,
-      version: "2.0",
-    };
+    try {
+      const dataToSave = {
+        items: state.items,
+        repeatedItems: state.repeatedItems,
+        schedule: state.schedule,
+        completedItems: state.completedItems,
+        version: "2.0",
+      };
 
-    // Always save to localStorage
-    localStorage.setItem("plannerData", JSON.stringify(dataToSave));
+      // Always save to localStorage with error handling
+      try {
+        localStorage.setItem("plannerData", JSON.stringify(dataToSave));
+      } catch (localStorageError) {
+        console.error("Failed to save to localStorage:", localStorageError);
+      }
 
-    // Save to Firestore if user is signed in
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      const userDocRef = doc(db, "users", currentUser.uid);
-      setDoc(userDocRef, dataToSave, { merge: true }).catch((error) => {
-        console.error("Failed to save data to Firestore:", error);
-      });
+      // Save to Firestore if user is signed in
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const userDocRef = doc(db, "users", currentUser.uid);
+          setDoc(userDocRef, dataToSave, { merge: true }).catch((error) => {
+            console.error("Failed to save data to Firestore:", error);
+          });
+        }
+      } catch (firestoreError) {
+        console.error("Firestore save error:", firestoreError);
+      }
+    } catch (error) {
+      console.error("Error in save effect:", error);
     }
   }, [state.items, state.repeatedItems, state.schedule, state.completedItems]);
 
   // Action creators
   const addItem = (itemData) => {
-    const item = new Item(
-      generateId(),
-      itemData.name,
-      itemData.itemType,
-      itemData.subtype,
-      itemData.frequency,
-      itemData.customFrequency
-    );
-    item.quantity = itemData.quantity || 1;
-    item.duration = itemData.duration || 0;
+    try {
+      const item = new Item(
+        generateId(),
+        itemData.name,
+        itemData.itemType,
+        itemData.subtype,
+        itemData.frequency,
+        itemData.customFrequency
+      );
+      item.quantity = itemData.quantity || 1;
+      item.duration = itemData.duration || 0;
 
-    dispatch({ type: ActionTypes.ADD_ITEM, payload: { item } });
-    return item;
+      dispatch({ type: ActionTypes.ADD_ITEM, payload: { item } });
+      return item;
+    } catch (error) {
+      console.error("Error in addItem:", error, itemData);
+      throw error;
+    }
   };
 
   const removeItem = (itemId, itemType) => {

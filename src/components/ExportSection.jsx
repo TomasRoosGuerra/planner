@@ -458,19 +458,19 @@ const ExportSection = () => {
     if (quotedMatches && quotedMatches.length >= 2) {
       return [quotedMatches[0].slice(1, -1), quotedMatches[1].slice(1, -1)];
     }
-    
+
     // Try to match unquoted fields with comma separator
     const unquotedMatches = line.match(/^([^,]+),(.+)$/);
     if (unquotedMatches && unquotedMatches.length >= 3) {
       return [unquotedMatches[1].trim(), unquotedMatches[2].trim()];
     }
-    
+
     // Fallback: split by comma and trim
-    const parts = line.split(',').map(p => p.trim().replace(/^"|"$/g, ''));
+    const parts = line.split(",").map((p) => p.trim().replace(/^"|"$/g, ""));
     if (parts.length >= 2) {
       return [parts[0], parts[1]];
     }
-    
+
     return [null, null];
   };
 
