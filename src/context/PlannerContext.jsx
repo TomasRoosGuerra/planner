@@ -264,6 +264,56 @@ const convertScheduleToPlain = (schedule) => {
   return plain;
 };
 
+// Helper functions to convert plain objects back to class instances
+const convertPlainObjectsToInstances = (itemsObj) => {
+  const instances = {};
+  for (const [key, plainItem] of Object.entries(itemsObj)) {
+    const item = new Item(
+      plainItem.id,
+      plainItem.name,
+      plainItem.itemType,
+      plainItem.subtype,
+      plainItem.frequency,
+      plainItem.customFrequency
+    );
+    item.quantity = plainItem.quantity || 1;
+    item.duration = plainItem.duration || 0;
+    
+    // Convert sub-items back to SubItem instances
+    if (plainItem.subItems && Array.isArray(plainItem.subItems)) {
+      item.subItems = plainItem.subItems.map((plainSubItem) => {
+        const subItem = new SubItem(
+          plainSubItem.id,
+          plainSubItem.name,
+          plainSubItem.parentId,
+          plainSubItem.duration || 0
+        );
+        return subItem;
+      });
+    }
+    
+    instances[key] = item;
+  }
+  return instances;
+};
+
+const convertScheduleToInstances = (schedule) => {
+  const instances = {};
+  for (const [key, items] of Object.entries(schedule)) {
+    instances[key] = items.map((plainItem) => {
+      const scheduleItem = new ScheduleItem(
+        plainItem.itemId,
+        plainItem.subItemId,
+        plainItem.day,
+        plainItem.timeSlot,
+        plainItem.index
+      );
+      return scheduleItem;
+    });
+  }
+  return instances;
+};
+
 // Context
 const PlannerContext = createContext();
 
@@ -291,7 +341,16 @@ export const PlannerProvider = ({ children }) => {
               if (data && (data.items || data.repeatedItems || data.schedule)) {
                 console.log("📝 Loading data into state");
                 setSkipNextSave(true); // Prevent save effect from firing
-                dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
+                
+                // Convert plain objects back to class instances
+                const convertedData = {
+                  items: data.items ? convertPlainObjectsToInstances(data.items) : {},
+                  repeatedItems: data.repeatedItems ? convertPlainObjectsToInstances(data.repeatedItems) : {},
+                  schedule: data.schedule ? convertScheduleToInstances(data.schedule) : {},
+                  completedItems: data.completedItems || {},
+                };
+                
+                dispatch({ type: ActionTypes.LOAD_DATA, payload: convertedData });
               } else {
                 // No data in Firestore, try localStorage
                 console.log("⚠️ No data in Firestore, trying localStorage");
@@ -395,7 +454,7 @@ export const PlannerProvider = ({ children }) => {
         const currentUser = auth.currentUser;
         if (currentUser) {
           console.log("💾 Saving to Firestore for user:", currentUser.uid);
-          
+
           // Convert class instances to plain objects for Firestore
           const firestoreData = {
             items: convertToPlainObjects(dataToSave.items),
@@ -404,7 +463,7 @@ export const PlannerProvider = ({ children }) => {
             completedItems: dataToSave.completedItems,
             version: dataToSave.version,
           };
-          
+
           const userDocRef = doc(db, "users", currentUser.uid);
           setDoc(userDocRef, firestoreData, { merge: true })
             .then(() => {
