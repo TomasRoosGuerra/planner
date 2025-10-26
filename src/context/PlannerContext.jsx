@@ -228,6 +228,42 @@ const plannerReducer = (state, action) => {
   }
 };
 
+// Helper functions to convert class instances to plain objects for Firestore
+const convertToPlainObjects = (itemsObj) => {
+  const plain = {};
+  for (const [key, value] of Object.entries(itemsObj)) {
+    plain[key] = {
+      id: value.id,
+      name: value.name,
+      itemType: value.itemType,
+      subtype: value.subtype,
+      frequency: value.frequency,
+      customFrequency: value.customFrequency,
+      quantity: value.quantity,
+      duration: value.duration,
+      subItems: value.subItems || [],
+      createdAt: value.createdAt,
+    };
+  }
+  return plain;
+};
+
+const convertScheduleToPlain = (schedule) => {
+  const plain = {};
+  for (const [key, items] of Object.entries(schedule)) {
+    plain[key] = items.map((item) => ({
+      itemId: item.itemId,
+      subItemId: item.subItemId,
+      day: item.day,
+      timeSlot: item.timeSlot,
+      index: item.index,
+      completed: item.completed,
+      scheduledAt: item.scheduledAt,
+    }));
+  }
+  return plain;
+};
+
 // Context
 const PlannerContext = createContext();
 
@@ -359,8 +395,18 @@ export const PlannerProvider = ({ children }) => {
         const currentUser = auth.currentUser;
         if (currentUser) {
           console.log("💾 Saving to Firestore for user:", currentUser.uid);
+          
+          // Convert class instances to plain objects for Firestore
+          const firestoreData = {
+            items: convertToPlainObjects(dataToSave.items),
+            repeatedItems: convertToPlainObjects(dataToSave.repeatedItems),
+            schedule: convertScheduleToPlain(dataToSave.schedule),
+            completedItems: dataToSave.completedItems,
+            version: dataToSave.version,
+          };
+          
           const userDocRef = doc(db, "users", currentUser.uid);
-          setDoc(userDocRef, dataToSave, { merge: true })
+          setDoc(userDocRef, firestoreData, { merge: true })
             .then(() => {
               console.log("✅ Saved to Firestore successfully");
             })

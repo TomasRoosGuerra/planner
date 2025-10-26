@@ -46,18 +46,18 @@ export class Item {
       console.error("Invalid Item ID:", id);
       throw new Error("Item ID is required");
     }
-    
+
     // Convert to string if needed
     const stringId = String(id);
-    
+
     if (!name) {
       console.error("Invalid Item name:", name);
       throw new Error("Item name is required");
     }
-    
+
     // Convert to string if needed
     const stringName = String(name);
-    
+
     if (stringName.trim() === "") {
       console.error("Invalid Item name: empty string");
       throw new Error("Item name cannot be empty");
