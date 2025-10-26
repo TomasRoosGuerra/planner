@@ -76,14 +76,16 @@ const plannerReducer = (state, action) => {
       const { itemId, updates, itemType } = action.payload;
       const targetPool =
         itemType === ITEM_TYPES.REPEATED ? "repeatedItems" : "items";
+      const existingItem = state[targetPool][itemId];
+      
+      // Keep the class instance and just update properties
+      const updatedItem = Object.assign(Object.create(Object.getPrototypeOf(existingItem)), existingItem, updates);
+      
       return {
         ...state,
         [targetPool]: {
           ...state[targetPool],
-          [itemId]: {
-            ...state[targetPool][itemId],
-            ...updates,
-          },
+          [itemId]: updatedItem,
         },
       };
     }
@@ -94,14 +96,15 @@ const plannerReducer = (state, action) => {
         itemType === ITEM_TYPES.REPEATED ? "repeatedItems" : "items";
       const parentItem = state[targetPool][parentId];
 
+      // Keep the class instance and just update subItems array
+      const updatedItem = Object.assign(Object.create(Object.getPrototypeOf(parentItem)), parentItem);
+      updatedItem.subItems = [...parentItem.subItems, subItem];
+
       return {
         ...state,
         [targetPool]: {
           ...state[targetPool],
-          [parentId]: {
-            ...parentItem,
-            subItems: [...parentItem.subItems, subItem],
-          },
+          [parentId]: updatedItem,
         },
       };
     }
@@ -112,16 +115,17 @@ const plannerReducer = (state, action) => {
         itemType === ITEM_TYPES.REPEATED ? "repeatedItems" : "items";
       const parentItem = state[targetPool][parentId];
 
+      // Keep the class instance and just update subItems array
+      const updatedItem = Object.assign(Object.create(Object.getPrototypeOf(parentItem)), parentItem);
+      updatedItem.subItems = parentItem.subItems.filter(
+        (item) => item.id !== subItemId
+      );
+
       return {
         ...state,
         [targetPool]: {
           ...state[targetPool],
-          [parentId]: {
-            ...parentItem,
-            subItems: parentItem.subItems.filter(
-              (item) => item.id !== subItemId
-            ),
-          },
+          [parentId]: updatedItem,
         },
       };
     }
@@ -278,7 +282,7 @@ const convertPlainObjectsToInstances = (itemsObj) => {
     );
     item.quantity = plainItem.quantity || 1;
     item.duration = plainItem.duration || 0;
-    
+
     // Convert sub-items back to SubItem instances
     if (plainItem.subItems && Array.isArray(plainItem.subItems)) {
       item.subItems = plainItem.subItems.map((plainSubItem) => {
@@ -291,7 +295,7 @@ const convertPlainObjectsToInstances = (itemsObj) => {
         return subItem;
       });
     }
-    
+
     instances[key] = item;
   }
   return instances;
@@ -341,16 +345,25 @@ export const PlannerProvider = ({ children }) => {
               if (data && (data.items || data.repeatedItems || data.schedule)) {
                 console.log("📝 Loading data into state");
                 setSkipNextSave(true); // Prevent save effect from firing
-                
+
                 // Convert plain objects back to class instances
                 const convertedData = {
-                  items: data.items ? convertPlainObjectsToInstances(data.items) : {},
-                  repeatedItems: data.repeatedItems ? convertPlainObjectsToInstances(data.repeatedItems) : {},
-                  schedule: data.schedule ? convertScheduleToInstances(data.schedule) : {},
+                  items: data.items
+                    ? convertPlainObjectsToInstances(data.items)
+                    : {},
+                  repeatedItems: data.repeatedItems
+                    ? convertPlainObjectsToInstances(data.repeatedItems)
+                    : {},
+                  schedule: data.schedule
+                    ? convertScheduleToInstances(data.schedule)
+                    : {},
                   completedItems: data.completedItems || {},
                 };
-                
-                dispatch({ type: ActionTypes.LOAD_DATA, payload: convertedData });
+
+                dispatch({
+                  type: ActionTypes.LOAD_DATA,
+                  payload: convertedData,
+                });
               } else {
                 // No data in Firestore, try localStorage
                 console.log("⚠️ No data in Firestore, trying localStorage");
