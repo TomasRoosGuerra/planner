@@ -1,6 +1,6 @@
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import React, { createContext, useContext, useEffect, useReducer } from "react";
+import React, { createContext, useContext, useEffect, useReducer, useState } from "react";
 import { auth, db } from "../firebase";
 import { generateId, Item, ITEM_TYPES, ScheduleItem, SubItem } from "../models";
 
@@ -228,27 +228,36 @@ const PlannerContext = createContext();
 // Provider component
 export const PlannerProvider = ({ children }) => {
   const [state, dispatch] = useReducer(plannerReducer, initialState);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [skipNextSave, setSkipNextSave] = useState(false);
 
   // Auth state listener and Firebase sync
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       try {
+        console.log("🔐 Auth state changed, user:", user?.email);
         if (user) {
           // User is signed in - load from Firestore
           try {
+            console.log("📥 Loading data from Firestore for user:", user.uid);
             const userDocRef = doc(db, "users", user.uid);
             const userDoc = await getDoc(userDocRef);
             if (userDoc.exists()) {
               const data = userDoc.data();
+              console.log("✅ Found data in Firestore:", data);
               // Only load if we have actual data
               if (data && (data.items || data.repeatedItems || data.schedule)) {
+                console.log("📝 Loading data into state");
+                setSkipNextSave(true); // Prevent save effect from firing
                 dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
               } else {
                 // No data in Firestore, try localStorage
+                console.log("⚠️ No data in Firestore, trying localStorage");
                 const savedData = localStorage.getItem("plannerData");
                 if (savedData) {
                   try {
                     const data = JSON.parse(savedData);
+                    setSkipNextSave(true);
                     dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
                   } catch (err) {
                     console.error("Failed to load data from localStorage:", err);
@@ -257,10 +266,12 @@ export const PlannerProvider = ({ children }) => {
               }
             } else {
               // Firestore doc doesn't exist, use localStorage
+              console.log("⚠️ Firestore doc doesn't exist, using localStorage");
               const savedData = localStorage.getItem("plannerData");
               if (savedData) {
                 try {
                   const data = JSON.parse(savedData);
+                  setSkipNextSave(true);
                   dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
                 } catch (err) {
                   console.error("Failed to load data from localStorage:", err);
@@ -274,6 +285,7 @@ export const PlannerProvider = ({ children }) => {
             if (savedData) {
               try {
                 const data = JSON.parse(savedData);
+                setSkipNextSave(true);
                 dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
               } catch (err) {
                 console.error("Failed to load data from localStorage:", err);
@@ -282,18 +294,22 @@ export const PlannerProvider = ({ children }) => {
           }
         } else {
           // User is signed out - load from localStorage
+          console.log("👤 User signed out, loading from localStorage");
           const savedData = localStorage.getItem("plannerData");
           if (savedData) {
             try {
               const data = JSON.parse(savedData);
+              setSkipNextSave(true);
               dispatch({ type: ActionTypes.LOAD_DATA, payload: data });
             } catch (error) {
               console.error("Failed to load data from localStorage:", error);
             }
           }
         }
+        setIsInitialized(true);
       } catch (error) {
         console.error("Error in auth state listener:", error);
+        setIsInitialized(true);
       }
     });
 
@@ -302,7 +318,17 @@ export const PlannerProvider = ({ children }) => {
 
   // Save data to both localStorage and Firestore
   useEffect(() => {
+    // Skip save if we just loaded data or not initialized yet
+    if (skipNextSave || !isInitialized) {
+      if (skipNextSave) {
+        console.log("⏭️ Skipping save (just loaded data)");
+        setSkipNextSave(false);
+      }
+      return;
+    }
+
     try {
+      console.log("💾 Saving data...");
       const dataToSave = {
         items: state.items,
         repeatedItems: state.repeatedItems,
@@ -314,6 +340,7 @@ export const PlannerProvider = ({ children }) => {
       // Always save to localStorage with error handling
       try {
         localStorage.setItem("plannerData", JSON.stringify(dataToSave));
+        console.log("✅ Saved to localStorage");
       } catch (localStorageError) {
         console.error("Failed to save to localStorage:", localStorageError);
       }
@@ -322,10 +349,17 @@ export const PlannerProvider = ({ children }) => {
       try {
         const currentUser = auth.currentUser;
         if (currentUser) {
+          console.log("💾 Saving to Firestore for user:", currentUser.uid);
           const userDocRef = doc(db, "users", currentUser.uid);
-          setDoc(userDocRef, dataToSave, { merge: true }).catch((error) => {
-            console.error("Failed to save data to Firestore:", error);
-          });
+          setDoc(userDocRef, dataToSave, { merge: true })
+            .then(() => {
+              console.log("✅ Saved to Firestore successfully");
+            })
+            .catch((error) => {
+              console.error("❌ Failed to save data to Firestore:", error);
+            });
+        } else {
+          console.log("⚠️ No user signed in, skipping Firestore save");
         }
       } catch (firestoreError) {
         console.error("Firestore save error:", firestoreError);
@@ -333,7 +367,7 @@ export const PlannerProvider = ({ children }) => {
     } catch (error) {
       console.error("Error in save effect:", error);
     }
-  }, [state.items, state.repeatedItems, state.schedule, state.completedItems]);
+  }, [state.items, state.repeatedItems, state.schedule, state.completedItems, skipNextSave, isInitialized]);
 
   // Action creators
   const addItem = (itemData) => {

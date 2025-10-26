@@ -362,7 +362,7 @@ const ExportSection = () => {
         try {
           console.log("Starting to clear and import items");
           actions.clearAllData();
-          
+
           itemsToImport.forEach((itemData) => {
             console.log("Processing item for import:", itemData);
             try {
@@ -417,7 +417,10 @@ const ExportSection = () => {
 
                     const validatedSubItemData = {
                       name: subItemData.name.trim(),
-                      duration: Math.max(0, parseInt(subItemData.duration) || 0),
+                      duration: Math.max(
+                        0,
+                        parseInt(subItemData.duration) || 0
+                      ),
                     };
 
                     console.log("Adding sub-item:", validatedSubItemData);
@@ -432,7 +435,9 @@ const ExportSection = () => {
                       subItemData,
                       subItemError
                     );
-                    toast.error(`Failed to import sub-item: ${subItemData.name}`);
+                    toast.error(
+                      `Failed to import sub-item: ${subItemData.name}`
+                    );
                   }
                 });
               }
@@ -440,7 +445,9 @@ const ExportSection = () => {
               importedCount++;
             } catch (itemError) {
               console.error("Error importing item:", itemData, itemError);
-              toast.error(`Failed to import item: ${itemData.name || "Unknown"}`);
+              toast.error(
+                `Failed to import item: ${itemData.name || "Unknown"}`
+              );
             }
           });
         } catch (error) {

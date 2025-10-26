@@ -50,10 +50,10 @@ export class Item {
       console.error("Invalid Item name:", name);
       throw new Error("Item name is required and must be a non-empty string");
     }
-    
+
     // Allow any itemType for backwards compatibility
-    const validItemType = Object.values(ITEM_TYPES).includes(itemType) 
-      ? itemType 
+    const validItemType = Object.values(ITEM_TYPES).includes(itemType)
+      ? itemType
       : ITEM_TYPES.NORMAL;
 
     this.id = id;
