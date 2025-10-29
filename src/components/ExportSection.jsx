@@ -356,96 +356,41 @@ const ExportSection = () => {
       // Import all collected items with comprehensive error handling
       if (itemsToImport.size > 0) {
         try {
-          console.log("Starting to clear and import items");
-          actions.clearAllData();
+          console.log("Batch loading imported CSV items");
+          // Build a data object compatible with loadImportedData
+          const importedData = { items: {}, repeatedItems: {} };
 
           itemsToImport.forEach((itemData) => {
-            console.log("Processing item for import:", itemData);
-            try {
-              // Validate item data before processing
-              if (
-                !itemData.name ||
-                typeof itemData.name !== "string" ||
-                itemData.name.trim() === ""
-              ) {
-                console.warn("Skipping item with invalid name:", itemData);
-                return;
-              }
+            // Normalize structure for loadImportedData
+            const normalized = {
+              id: undefined, // will be kept/assigned inside loadImportedData
+              name: itemData.name.trim(),
+              itemType: itemData.itemType || ITEM_TYPES.NORMAL,
+              subtype: itemData.subtype || null,
+              frequency: itemData.frequency || null,
+              customFrequency: itemData.customFrequency || null,
+              quantity: Math.max(1, parseInt(itemData.quantity) || 1),
+              duration: Math.max(0, parseInt(itemData.duration) || 0),
+              subItems:
+                Array.isArray(itemData.subItems) && itemData.subItems.length > 0
+                  ? itemData.subItems.map((si) => ({
+                      id: undefined,
+                      name: String(si.name || "").trim(),
+                      duration: Math.max(0, parseInt(si.duration) || 0),
+                    }))
+                  : [],
+            };
 
-              // Extract sub-items before creating the main item
-              const { subItems, ...itemDataWithoutSubItems } = itemData;
-
-              // Ensure required fields have valid values
-              const validatedItemData = {
-                ...itemDataWithoutSubItems,
-                name: itemDataWithoutSubItems.name.trim(),
-                itemType: itemDataWithoutSubItems.itemType || ITEM_TYPES.NORMAL,
-                quantity: Math.max(
-                  1,
-                  parseInt(itemDataWithoutSubItems.quantity) || 1
-                ),
-                duration: Math.max(
-                  0,
-                  parseInt(itemDataWithoutSubItems.duration) || 0
-                ),
-              };
-
-              console.log("Calling addItem with:", validatedItemData);
-              const item = actions.addItem(validatedItemData);
-              console.log("Item created successfully:", item);
-
-              // Add sub-items if any
-              if (subItems && Array.isArray(subItems) && subItems.length > 0) {
-                subItems.forEach((subItemData) => {
-                  try {
-                    // Validate sub-item data
-                    if (
-                      !subItemData.name ||
-                      typeof subItemData.name !== "string" ||
-                      subItemData.name.trim() === ""
-                    ) {
-                      console.warn(
-                        "Skipping sub-item with invalid name:",
-                        subItemData
-                      );
-                      return;
-                    }
-
-                    const validatedSubItemData = {
-                      name: subItemData.name.trim(),
-                      duration: Math.max(
-                        0,
-                        parseInt(subItemData.duration) || 0
-                      ),
-                    };
-
-                    console.log("Adding sub-item:", validatedSubItemData);
-                    actions.addSubItem(
-                      item.id,
-                      validatedSubItemData,
-                      itemData.itemType
-                    );
-                  } catch (subItemError) {
-                    console.error(
-                      "Error importing sub-item:",
-                      subItemData,
-                      subItemError
-                    );
-                    toast.error(
-                      `Failed to import sub-item: ${subItemData.name}`
-                    );
-                  }
-                });
-              }
-
-              importedCount++;
-            } catch (itemError) {
-              console.error("Error importing item:", itemData, itemError);
-              toast.error(
-                `Failed to import item: ${itemData.name || "Unknown"}`
-              );
+            if (normalized.itemType === ITEM_TYPES.REPEATED) {
+              importedData.repeatedItems[normalized.name] = normalized;
+            } else {
+              importedData.items[normalized.name] = normalized;
             }
           });
+
+          // Use batch loader to replace state in one go (and persist once)
+          actions.loadImportedData(importedData);
+          importedCount = itemsToImport.size;
         } catch (error) {
           console.error("Critical error during import process:", error);
           toast.error("Failed to import: " + error.message);

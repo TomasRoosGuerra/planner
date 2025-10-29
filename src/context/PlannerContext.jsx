@@ -608,7 +608,10 @@ export const PlannerProvider = ({ children }) => {
   };
 
   const clearAllData = () => {
+    // Avoid persisting an empty state when clearing
+    setSkipNextSave(true);
     dispatch({ type: ActionTypes.CLEAR_ALL_DATA });
+    queueMicrotask(() => setSkipNextSave(false));
   };
 
   const loadImportedData = (importedData) => {
