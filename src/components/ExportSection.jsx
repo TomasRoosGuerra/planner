@@ -199,15 +199,11 @@ const ExportSection = () => {
             const data = JSON.parse(e.target.result);
 
             // Clear data ONLY if valid data exists
-            if (data.items || data.repeatedItems) {
-              actions.clearAllData();
-              // Load the imported data
-              Object.entries(data.items || {}).forEach(([id, item]) => {
-                actions.addItem(item);
-              });
-              Object.entries(data.repeatedItems || {}).forEach(([id, item]) => {
-                actions.addItem(item);
-              });
+            if (data.items || data.repeatedItems || data.schedule) {
+              // Use the new loadImportedData function which properly converts
+              // plain objects to class instances and loads all data at once
+              // Note: loadImportedData clears data internally
+              actions.loadImportedData(data);
               toast.success("Data imported successfully!");
             } else {
               toast.error("No valid data found in file");

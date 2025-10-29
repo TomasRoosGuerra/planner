@@ -77,10 +77,14 @@ const plannerReducer = (state, action) => {
       const targetPool =
         itemType === ITEM_TYPES.REPEATED ? "repeatedItems" : "items";
       const existingItem = state[targetPool][itemId];
-      
+
       // Keep the class instance and just update properties
-      const updatedItem = Object.assign(Object.create(Object.getPrototypeOf(existingItem)), existingItem, updates);
-      
+      const updatedItem = Object.assign(
+        Object.create(Object.getPrototypeOf(existingItem)),
+        existingItem,
+        updates
+      );
+
       return {
         ...state,
         [targetPool]: {
@@ -97,7 +101,10 @@ const plannerReducer = (state, action) => {
       const parentItem = state[targetPool][parentId];
 
       // Keep the class instance and just update subItems array
-      const updatedItem = Object.assign(Object.create(Object.getPrototypeOf(parentItem)), parentItem);
+      const updatedItem = Object.assign(
+        Object.create(Object.getPrototypeOf(parentItem)),
+        parentItem
+      );
       updatedItem.subItems = [...parentItem.subItems, subItem];
 
       return {
@@ -116,7 +123,10 @@ const plannerReducer = (state, action) => {
       const parentItem = state[targetPool][parentId];
 
       // Keep the class instance and just update subItems array
-      const updatedItem = Object.assign(Object.create(Object.getPrototypeOf(parentItem)), parentItem);
+      const updatedItem = Object.assign(
+        Object.create(Object.getPrototypeOf(parentItem)),
+        parentItem
+      );
       updatedItem.subItems = parentItem.subItems.filter(
         (item) => item.id !== subItemId
       );
@@ -601,6 +611,101 @@ export const PlannerProvider = ({ children }) => {
     dispatch({ type: ActionTypes.CLEAR_ALL_DATA });
   };
 
+  const loadImportedData = (importedData) => {
+    // Convert plain objects from JSON import to class instances
+    // Note: LOAD_DATA will replace the entire state, so no need to clear first
+    const convertedItems = {};
+    if (importedData.items) {
+      Object.entries(importedData.items).forEach(([id, plainItem]) => {
+        const item = new Item(
+          plainItem.id || id,
+          plainItem.name,
+          plainItem.itemType || ITEM_TYPES.NORMAL,
+          plainItem.subtype,
+          plainItem.frequency,
+          plainItem.customFrequency
+        );
+        item.quantity = plainItem.quantity || 1;
+        item.duration = plainItem.duration || 0;
+
+        // Convert sub-items
+        if (plainItem.subItems && Array.isArray(plainItem.subItems)) {
+          item.subItems = plainItem.subItems.map((plainSubItem) => {
+            return new SubItem(
+              plainSubItem.id || generateId(),
+              plainSubItem.name,
+              item.id,
+              plainSubItem.duration || 0
+            );
+          });
+        }
+
+        convertedItems[id] = item;
+      });
+    }
+
+    const convertedRepeatedItems = {};
+    if (importedData.repeatedItems) {
+      Object.entries(importedData.repeatedItems).forEach(([id, plainItem]) => {
+        const item = new Item(
+          plainItem.id || id,
+          plainItem.name,
+          plainItem.itemType || ITEM_TYPES.REPEATED,
+          plainItem.subtype,
+          plainItem.frequency,
+          plainItem.customFrequency
+        );
+        item.quantity = plainItem.quantity || 1;
+        item.duration = plainItem.duration || 0;
+
+        // Convert sub-items
+        if (plainItem.subItems && Array.isArray(plainItem.subItems)) {
+          item.subItems = plainItem.subItems.map((plainSubItem) => {
+            return new SubItem(
+              plainSubItem.id || generateId(),
+              plainSubItem.name,
+              item.id,
+              plainSubItem.duration || 0
+            );
+          });
+        }
+
+        convertedRepeatedItems[id] = item;
+      });
+    }
+
+    const convertedSchedule = {};
+    if (importedData.schedule) {
+      Object.entries(importedData.schedule).forEach(([key, scheduleItems]) => {
+        convertedSchedule[key] = scheduleItems.map((plainScheduleItem) => {
+          return new ScheduleItem(
+            plainScheduleItem.itemId,
+            plainScheduleItem.subItemId,
+            plainScheduleItem.day,
+            plainScheduleItem.timeSlot,
+            plainScheduleItem.index
+          );
+        });
+      });
+    }
+
+    // Use LOAD_DATA to replace the entire state at once
+    // This ensures the save effect runs once with all the data
+    // This single dispatch will trigger one save with all imported data
+    dispatch({
+      type: ActionTypes.LOAD_DATA,
+      payload: {
+        items: convertedItems,
+        repeatedItems: convertedRepeatedItems,
+        schedule: convertedSchedule,
+        completedItems: importedData.completedItems || {},
+        // Explicitly include other state properties to ensure they're preserved/cleared as needed
+        showAdvancedOptions: state.showAdvancedOptions,
+        contextMenu: initialState.contextMenu,
+      },
+    });
+  };
+
   const value = {
     state,
     actions: {
@@ -617,6 +722,7 @@ export const PlannerProvider = ({ children }) => {
       openContextMenu,
       closeContextMenu,
       clearAllData,
+      loadImportedData,
     },
   };
 
