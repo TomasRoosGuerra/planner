@@ -246,6 +246,15 @@ const plannerReducer = (state, action) => {
 const convertToPlainObjects = (itemsObj) => {
   const plain = {};
   for (const [key, value] of Object.entries(itemsObj)) {
+    // Convert sub-items to plain objects with all necessary properties
+    const plainSubItems = (value.subItems || []).map((subItem) => ({
+      id: subItem.id,
+      name: subItem.name,
+      parentId: subItem.parentId,
+      duration: subItem.duration || 0,
+      createdAt: subItem.createdAt,
+    }));
+    
     plain[key] = {
       id: value.id,
       name: value.name,
@@ -255,7 +264,7 @@ const convertToPlainObjects = (itemsObj) => {
       customFrequency: value.customFrequency,
       quantity: value.quantity,
       duration: value.duration,
-      subItems: value.subItems || [],
+      subItems: plainSubItems,
       createdAt: value.createdAt,
     };
   }
@@ -448,14 +457,32 @@ export const PlannerProvider = ({ children }) => {
     // Skip save if we just loaded data or not initialized yet
     if (skipNextSave || !isInitialized) {
       if (skipNextSave) {
-        console.log("⏭️ Skipping save (just loaded data)");
+        console.log("⏭️ Skipping save (just loaded data or not initialized)");
         setSkipNextSave(false);
       }
       return;
     }
 
+    // Calculate if we have any data to save
+    const hasItems = Object.keys(state.items).length > 0;
+    const hasRepeatedItems = Object.keys(state.repeatedItems).length > 0;
+    const hasSchedule = Object.keys(state.schedule).length > 0;
+    
+    // Only save if we have actual data (skip empty state)
+    if (!hasItems && !hasRepeatedItems && !hasSchedule) {
+      console.log("⏭️ Skipping save (no data to save)");
+      return;
+    }
+
     try {
-      console.log("💾 Saving data...");
+      console.log("💾 Saving data...", {
+        itemsCount: Object.keys(state.items).length,
+        repeatedItemsCount: Object.keys(state.repeatedItems).length,
+        scheduleKeys: Object.keys(state.schedule).length,
+        isInitialized,
+        skipNextSave,
+      });
+      
       const dataToSave = {
         items: state.items,
         repeatedItems: state.repeatedItems,
@@ -466,8 +493,20 @@ export const PlannerProvider = ({ children }) => {
 
       // Always save to localStorage with error handling
       try {
-        localStorage.setItem("plannerData", JSON.stringify(dataToSave));
-        console.log("✅ Saved to localStorage");
+        // Convert class instances to JSON-serializable format for localStorage
+        const serializableData = {
+          items: convertToPlainObjects(dataToSave.items),
+          repeatedItems: convertToPlainObjects(dataToSave.repeatedItems),
+          schedule: convertScheduleToPlain(dataToSave.schedule),
+          completedItems: dataToSave.completedItems,
+          version: dataToSave.version,
+        };
+        
+        localStorage.setItem("plannerData", JSON.stringify(serializableData));
+        console.log("✅ Saved to localStorage:", {
+          itemsCount: Object.keys(serializableData.items).length,
+          repeatedItemsCount: Object.keys(serializableData.repeatedItems).length,
+        });
       } catch (localStorageError) {
         console.error("Failed to save to localStorage:", localStorageError);
       }
@@ -490,7 +529,10 @@ export const PlannerProvider = ({ children }) => {
           const userDocRef = doc(db, "users", currentUser.uid);
           setDoc(userDocRef, firestoreData, { merge: true })
             .then(() => {
-              console.log("✅ Saved to Firestore successfully");
+              console.log("✅ Saved to Firestore successfully:", {
+                itemsCount: Object.keys(firestoreData.items).length,
+                repeatedItemsCount: Object.keys(firestoreData.repeatedItems).length,
+              });
             })
             .catch((error) => {
               console.error("❌ Failed to save data to Firestore:", error);
@@ -615,13 +657,18 @@ export const PlannerProvider = ({ children }) => {
   };
 
   const loadImportedData = (importedData) => {
+    console.log("🔄 loadImportedData called with:", importedData);
+    
     // Convert plain objects from JSON import to class instances
     // Note: LOAD_DATA will replace the entire state, so no need to clear first
     const convertedItems = {};
     if (importedData.items) {
       Object.entries(importedData.items).forEach(([id, plainItem]) => {
+        // Use the provided id or the key, generate a new one if neither exists
+        const itemId = plainItem.id || id || generateId();
+        
         const item = new Item(
-          plainItem.id || id,
+          itemId,
           plainItem.name,
           plainItem.itemType || ITEM_TYPES.NORMAL,
           plainItem.subtype,
@@ -631,27 +678,30 @@ export const PlannerProvider = ({ children }) => {
         item.quantity = plainItem.quantity || 1;
         item.duration = plainItem.duration || 0;
 
-        // Convert sub-items
+        // Convert sub-items - preserve IDs if they exist, generate new ones otherwise
         if (plainItem.subItems && Array.isArray(plainItem.subItems)) {
           item.subItems = plainItem.subItems.map((plainSubItem) => {
             return new SubItem(
               plainSubItem.id || generateId(),
               plainSubItem.name,
-              item.id,
+              item.id, // Ensure parentId is set correctly
               plainSubItem.duration || 0
             );
           });
         }
 
-        convertedItems[id] = item;
+        convertedItems[item.id] = item; // Use item.id as key to ensure consistency
       });
     }
 
     const convertedRepeatedItems = {};
     if (importedData.repeatedItems) {
       Object.entries(importedData.repeatedItems).forEach(([id, plainItem]) => {
+        // Use the provided id or the key, generate a new one if neither exists
+        const itemId = plainItem.id || id || generateId();
+        
         const item = new Item(
-          plainItem.id || id,
+          itemId,
           plainItem.name,
           plainItem.itemType || ITEM_TYPES.REPEATED,
           plainItem.subtype,
@@ -661,19 +711,19 @@ export const PlannerProvider = ({ children }) => {
         item.quantity = plainItem.quantity || 1;
         item.duration = plainItem.duration || 0;
 
-        // Convert sub-items
+        // Convert sub-items - preserve IDs if they exist
         if (plainItem.subItems && Array.isArray(plainItem.subItems)) {
           item.subItems = plainItem.subItems.map((plainSubItem) => {
             return new SubItem(
               plainSubItem.id || generateId(),
               plainSubItem.name,
-              item.id,
+              item.id, // Ensure parentId is set correctly
               plainSubItem.duration || 0
             );
           });
         }
 
-        convertedRepeatedItems[id] = item;
+        convertedRepeatedItems[item.id] = item; // Use item.id as key
       });
     }
 
@@ -694,18 +744,29 @@ export const PlannerProvider = ({ children }) => {
 
     // Use LOAD_DATA to replace the entire state at once
     // This ensures the save effect runs once with all the data
-    // This single dispatch will trigger one save with all imported data
+    const loadedData = {
+      items: convertedItems,
+      repeatedItems: convertedRepeatedItems,
+      schedule: convertedSchedule,
+      completedItems: importedData.completedItems || {},
+      // Explicitly include other state properties to ensure they're preserved/cleared as needed
+      showAdvancedOptions: state.showAdvancedOptions,
+      contextMenu: initialState.contextMenu,
+    };
+    
+    console.log("📦 Dispatching LOAD_DATA with:", {
+      itemsCount: Object.keys(convertedItems).length,
+      repeatedItemsCount: Object.keys(convertedRepeatedItems).length,
+      scheduleKeys: Object.keys(convertedSchedule).length,
+    });
+    
+    // Ensure we don't skip the save after loading imported data
+    // Set skipNextSave to false BEFORE dispatching to ensure save runs
+    setSkipNextSave(false);
+    
     dispatch({
       type: ActionTypes.LOAD_DATA,
-      payload: {
-        items: convertedItems,
-        repeatedItems: convertedRepeatedItems,
-        schedule: convertedSchedule,
-        completedItems: importedData.completedItems || {},
-        // Explicitly include other state properties to ensure they're preserved/cleared as needed
-        showAdvancedOptions: state.showAdvancedOptions,
-        contextMenu: initialState.contextMenu,
-      },
+      payload: loadedData,
     });
   };
 
