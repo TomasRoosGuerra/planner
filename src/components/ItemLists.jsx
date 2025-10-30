@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { useDrag } from "react-dnd";
 import { usePlanner } from "../context/PlannerContext";
 import {
@@ -184,6 +184,7 @@ const ItemList = ({ items, title, itemType, onContextMenu }) => {
 
 const ItemLists = () => {
   const { state, actions } = usePlanner();
+  const [activeTab, setActiveTab] = useState("DO");
 
   const handleContextMenu = (e, item, type) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -222,42 +223,47 @@ const ItemLists = () => {
     )
   );
 
+  const tabs = useMemo(
+    () => [
+      { key: "DECIDE", label: "🤔 Decide", items: decideItems, type: ITEM_TYPES.NORMAL },
+      { key: "DELETE", label: "🗑️ Delete", items: deleteItems, type: ITEM_TYPES.NORMAL },
+      { key: "DEFER", label: "⏳ Defer", items: deferItems, type: ITEM_TYPES.NORMAL },
+      { key: "PLAN", label: "📋 Plan", items: planItems, type: ITEM_TYPES.NORMAL },
+      { key: "DO", label: "✅ Do", items: doItems, type: ITEM_TYPES.NORMAL },
+      { key: "REPEATED", label: "🔄 Repeated", items: state.repeatedItems, type: ITEM_TYPES.REPEATED },
+    ],
+    [decideItems, deleteItems, deferItems, planItems, doItems, state.repeatedItems]
+  );
+
+  const active = tabs.find((t) => t.key === activeTab) || tabs[4];
+  const headerCount = Object.keys(active.items).length;
+  const headerTitle = `${active.label} (${headerCount})`;
+
   return (
     <div className="items-section">
+      <div className="items-nav" role="tablist" aria-label="Item categories">
+        {tabs.map((tab) => {
+          const count = Object.keys(tab.items).length;
+          const isActive = tab.key === active.key;
+          return (
+            <button
+              key={tab.key}
+              role="tab"
+              aria-selected={isActive}
+              className={`pill ${isActive ? "active" : ""}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              <span className="pill-label">{tab.label}</span>
+              <span className="pill-count">{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <ItemList
-        items={decideItems}
-        title="🤔 Decide Items"
-        itemType={ITEM_TYPES.NORMAL}
-        onContextMenu={handleContextMenu}
-      />
-      <ItemList
-        items={deleteItems}
-        title="🗑️ Delete Items"
-        itemType={ITEM_TYPES.NORMAL}
-        onContextMenu={handleContextMenu}
-      />
-      <ItemList
-        items={deferItems}
-        title="⏳ Defer Items"
-        itemType={ITEM_TYPES.NORMAL}
-        onContextMenu={handleContextMenu}
-      />
-      <ItemList
-        items={planItems}
-        title="📋 Plan Items"
-        itemType={ITEM_TYPES.NORMAL}
-        onContextMenu={handleContextMenu}
-      />
-      <ItemList
-        items={doItems}
-        title="✅ Do Items"
-        itemType={ITEM_TYPES.NORMAL}
-        onContextMenu={handleContextMenu}
-      />
-      <ItemList
-        items={state.repeatedItems}
-        title="🔄 Repeated Items"
-        itemType={ITEM_TYPES.REPEATED}
+        items={active.items}
+        title={headerTitle}
+        itemType={active.type}
         onContextMenu={handleContextMenu}
       />
     </div>
