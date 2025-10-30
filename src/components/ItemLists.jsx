@@ -5,6 +5,7 @@ import {
   FREQUENCY_ICONS,
   ITEM_TYPES,
   ITEM_TYPE_ICONS,
+  NORMAL_SUBTYPES,
   SUBTYPE_ICONS,
 } from "../models";
 
@@ -193,11 +194,63 @@ const ItemLists = () => {
     );
   };
 
+  // Build subtype-specific pools for normal items
+  const normalItems = state.items;
+  const decideItems = Object.fromEntries(
+    Object.entries(normalItems).filter(
+      ([, item]) => item.subtype === NORMAL_SUBTYPES.DECIDE
+    )
+  );
+  const deleteItems = Object.fromEntries(
+    Object.entries(normalItems).filter(
+      ([, item]) => item.subtype === NORMAL_SUBTYPES.DELETE
+    )
+  );
+  const deferItems = Object.fromEntries(
+    Object.entries(normalItems).filter(
+      ([, item]) => item.subtype === NORMAL_SUBTYPES.DEFER
+    )
+  );
+  const planItems = Object.fromEntries(
+    Object.entries(normalItems).filter(
+      ([, item]) => item.subtype === NORMAL_SUBTYPES.PLAN
+    )
+  );
+  const doItems = Object.fromEntries(
+    Object.entries(normalItems).filter(
+      ([, item]) => item.subtype === NORMAL_SUBTYPES.DO
+    )
+  );
+
   return (
     <div className="items-section">
       <ItemList
-        items={state.items}
-        title="📦 Available Items"
+        items={decideItems}
+        title="🤔 Decide Items"
+        itemType={ITEM_TYPES.NORMAL}
+        onContextMenu={handleContextMenu}
+      />
+      <ItemList
+        items={deleteItems}
+        title="🗑️ Delete Items"
+        itemType={ITEM_TYPES.NORMAL}
+        onContextMenu={handleContextMenu}
+      />
+      <ItemList
+        items={deferItems}
+        title="⏳ Defer Items"
+        itemType={ITEM_TYPES.NORMAL}
+        onContextMenu={handleContextMenu}
+      />
+      <ItemList
+        items={planItems}
+        title="📋 Plan Items"
+        itemType={ITEM_TYPES.NORMAL}
+        onContextMenu={handleContextMenu}
+      />
+      <ItemList
+        items={doItems}
+        title="✅ Do Items"
         itemType={ITEM_TYPES.NORMAL}
         onContextMenu={handleContextMenu}
       />
